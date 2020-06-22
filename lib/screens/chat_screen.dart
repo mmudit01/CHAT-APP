@@ -73,10 +73,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   FlatButton(
                     onPressed: () {
+                      var dateTime = Timestamp.now();
                       messageTextController.clear();
                       _firestore.collection('messages').add({
                         'text': messageText,
                         'sender': loggedInUser.email,
+                        'date': dateTime,
                       });
                     },
                     child: Text(
@@ -98,7 +100,7 @@ class MessagesStream extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore.collection('messages').snapshots(),
+      stream: _firestore.collection('messages').orderBy('date').snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return Center(
@@ -112,10 +114,12 @@ class MessagesStream extends StatelessWidget {
           final messageText = message.data['text'];
           final messageSender = message.data['sender'];
           final currentUser = loggedInUser.email;
+          final dateTime = message.data['date'];
 
           final messageBubble = MessageBubble(
             sender: messageSender,
             text: messageText,
+            date: dateTime,
             isMe: currentUser == messageSender ? true : false,
           );
           messageBubbles.add(messageBubble);
@@ -133,10 +137,39 @@ class MessagesStream extends StatelessWidget {
 }
 
 class MessageBubble extends StatelessWidget {
-  MessageBubble({this.sender, this.text, this.isMe});
+  MessageBubble({this.sender, this.text, this.isMe, this.date});
   final String sender;
   final String text;
   final bool isMe;
+  final Timestamp date;
+
+  Text timeStamp() {
+    var hourChanged, minuteChanged;
+    var hour = date.toDate().hour.toInt();
+    var minute = date.toDate().minute.toInt();
+    if (hour > 12) {
+      hourChanged = hour - 12;
+    } else {
+      hourChanged = hour;
+    }
+    if (minute < 11) {
+      minuteChanged = '0$minute';
+    } else {
+      minuteChanged = '$minute';
+    }
+
+    if (hour > 12) {
+      return Text(
+        '$hourChanged:$minuteChanged pm',
+        style: kTime,
+      );
+    } else {
+      return Text(
+        '$hourChanged:$minuteChanged am',
+        style: kTime,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +182,7 @@ class MessageBubble extends StatelessWidget {
           Text(
             sender,
             style: TextStyle(
-              fontSize: 15,
+              fontSize: 10,
               color: Colors.black54,
             ),
           ),
@@ -169,12 +202,20 @@ class MessageBubble extends StatelessWidget {
             color: isMe ? Colors.lightBlueAccent : Colors.white,
             child: Padding(
               padding: EdgeInsets.symmetric(vertical: 10, horizontal: 20),
-              child: Text(
-                '$text',
-                style: TextStyle(
-                  color: isMe ? Colors.white : Colors.black54,
-                  fontSize: 15,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: <Widget>[
+                  Text(
+                    '$text  ',
+                    style: TextStyle(
+                      color: isMe ? Colors.white : Colors.black,
+                      fontSize: 18,
+                    ),
+                  ),
+                  timeStamp(),
+                ],
               ),
             ),
           ),
